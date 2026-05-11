@@ -85,5 +85,18 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 
 - `MBTilesStore` writes to `getExternalFilesDir(null)` — no `WRITE_EXTERNAL_STORAGE` permission
   needed on API 29+. Files are in `Android/data/com.mapscreator/files/` on the device.
-- The Gradle wrapper (`gradlew`) is included in the repo. No need to install Gradle manually.
+- The Gradle wrapper (`gradlew` / `gradlew.bat`) is included in the repo. No need to install
+  Gradle manually. If the scripts are missing, regenerate them with a local Gradle installation:
+  `gradle wrapper --gradle-version 8.6` (the version declared in `gradle-wrapper.properties`).
+- `local.properties` is **not** committed to the repo. Create it manually pointing to the local SDK:
+  ```
+  sdk.dir=C\:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
+  ```
+- `gradle.properties` must exist and contain `android.useAndroidX=true` (AndroidX dependencies
+  will not resolve without it). A minimal working file:
+  ```properties
+  android.useAndroidX=true
+  org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+  kotlin.code.style=official
+  ```
 - OSM tile server has rate limits. For bulk test downloads, prefer ArcGIS or a local tile cache.

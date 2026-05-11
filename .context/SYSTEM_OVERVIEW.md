@@ -52,7 +52,8 @@ to `:app`. No tile logic lives here.
 ### Flow 1 — Area selection + download (standalone)
 
 1. User taps FAB → `MapSelectorActivity` opens.
-2. User draws polygon with stylus (or imports GPX → corridor bbox).
+2. User draws polygon with stylus, or imports GPX → corridor bbox. On GPX import, the track
+   is rendered as a red `Polyline` overlay and the map zooms to fit the full route bbox.
 3. `TileSizeEstimator` counts tiles + estimates bytes → shown in `DownloadConfirmDialog`.
 4. Dialog shows how many tiles are already cached (skip vs full download).
 5. User confirms → `DownloadService.start(...)` called → Foreground Service starts.

@@ -57,6 +57,10 @@ reader six months from now.
   Do not remove these calls — osmdroid holds GPS/network resources when active.
 - `DownloadConfirmDialog` is not a `DialogFragment` — it's a plain `AlertDialog` builder.
   This is intentional (simpler lifecycle, no backstack interaction needed).
+- **Every control that affects the tile estimate must call `updateEstimate()`** — this includes
+  the four source checkboxes and both zoom sliders. If a new source or zoom control is added
+  to `MapSelectorActivity`, wire it immediately. `updateEstimate()` is safe to call before a
+  polygon is drawn (`polygonBbox() ?: return` guards it).
 
 ## Palette invariant (critical)
 

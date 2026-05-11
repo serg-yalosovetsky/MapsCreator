@@ -85,6 +85,74 @@ crosses the antimeridian (lon ±180°) or if lat/lon coordinates are swapped.
 **Fix.** Ensure `minLat < maxLat` and `minLon < maxLon`. The estimator does not handle
 antimeridian-crossing bboxes (rare for European hiking routes).
 
+## Size estimate doesn't update when changing tile sources or zoom levels
+
+**Symptom.** `tvEstimate` keeps showing the old tile count / byte size after the user toggles a
+source checkbox (OSM, ArcGIS, Google, Bing) or moves a zoom slider.
+
+**Root cause.** `updateEstimate()` was only wired to the polygon-draw `ACTION_UP` event and to
+the GPX import callback. The four source `CheckBox` views and both `Slider` views had no
+`OnCheckedChangeListener` / `addOnChangeListener`, so changes to them didn't trigger a
+recalculation.
+
+**Fix.** In `MapSelectorActivity.setupControls()`, register:
+- `setOnCheckedChangeListener { _, _ -> updateEstimate() }` on `cbOsm`, `cbArcgis`,
+  `cbGoogle`, `cbBing`.
+- `addOnChangeListener { _, value, _ -> ... updateEstimate() }` on `sliderZoomMin` and
+  `sliderZoomMax` (the listener also updates `tvZoomMinLabel` / `tvZoomMaxLabel`).
+
+`updateEstimate()` already guards against a missing polygon (`polygonBbox() ?: return`), so
+triggering it before the user draws is safe.
+
+**Invariant.** Any control that affects the tile count or byte estimate must call
+`updateEstimate()` when it changes. Check this whenever a new source or a new zoom control
+is added to `MapSelectorActivity`.
+
+## App crashes on startup — ActionBar conflict
+
+**Symptom.** `IllegalStateException: This Activity already has an action bar supplied by the
+window decor` on `setSupportActionBar(binding.toolbar)` in `MainActivity` or
+`MapSelectorActivity`.
+
+**Root cause.** The theme parent included a built-in ActionBar
+(`Theme.MaterialComponents.DayNight.DarkActionBar`), so Android provides one automatically.
+Calling `setSupportActionBar()` with a custom `Toolbar` then conflicts with it.
+
+**Fix.** Use the `NoActionBar` variant as the theme parent in `res/values/themes.xml`:
+```xml
+<style name="Theme.MapsCreator" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+```
+The custom `Toolbar` in each activity's layout becomes the only action bar.
+
+## `withPermit` unresolved reference in `TileDownloader`
+
+**Symptom.** Build error: `Unresolved reference: withPermit` in `TileDownloader.kt`.
+
+**Root cause.** `withPermit` is an extension function in the subpackage
+`kotlinx.coroutines.sync`. The wildcard `import kotlinx.coroutines.*` does **not** cover
+sub-packages in Kotlin.
+
+**Fix.** Add an explicit import:
+```kotlin
+import kotlinx.coroutines.sync.withPermit
+```
+
+## `onNewIntent` overrides nothing (Android API 34)
+
+**Symptom.** Build error: `'onNewIntent' overrides nothing` in `MainActivity.kt`.
+
+**Root cause.** Android API 34 changed the `Activity.onNewIntent` signature from
+`onNewIntent(intent: Intent?)` (nullable) to `onNewIntent(intent: Intent)` (non-nullable).
+The old nullable override no longer matches the base class.
+
+**Fix.** Update the signature and remove the null-safe call:
+```kotlin
+override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    handleIncomingIntent(intent)
+}
+```
+
 ## `parseBbox` fails for complex GeoJSON polygons
 
 **Symptom.** `DownloadService` starts but downloads 0 tiles, or downloads an incorrectly
