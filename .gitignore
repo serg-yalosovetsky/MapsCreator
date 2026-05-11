@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Android local
+local.properties
+*.keystore
+*.jks
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# Large binary assets
+*.zip
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/

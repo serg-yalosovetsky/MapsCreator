@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.mapscreator.osmandplugin">
+
+    <application
+        android:label="MapsCreator for OsmAnd"
+        android:icon="@android:drawable/ic_menu_mapmode">
+
+        <!--
+            OsmAnd plugin discovery: OsmAnd сканирует установленные APK
+            с этим meta-data и загружает их как плагины.
+        -->
+        <meta-data
+            android:name="osmand.plugin"
+            android:value="com.mapscreator.osmandplugin.MapsCreatorPlugin" />
+
+    </application>
+
+</manifest>

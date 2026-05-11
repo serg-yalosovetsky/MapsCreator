@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:title="Выберите область" />
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:background="?attr/colorSurface">
+
+        <!-- Источники тайлов -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <CheckBox android:id="@+id/cb_osm" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="OSM" android:checked="true" />
+            <CheckBox android:id="@+id/cb_arcgis" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="ArcGIS" />
+            <CheckBox android:id="@+id/cb_google" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="Google" />
+            <CheckBox android:id="@+id/cb_bing" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content"
+                android:text="Bing" />
+        </LinearLayout>
+
+        <!-- Zoom слайдеры -->
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Зум мин: 14" android:id="@+id/tv_zoom_min_label" />
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slider_zoom_min"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:valueFrom="10" android:valueTo="18" android:value="14"
+            android:stepSize="1" />
+
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Зум макс: 16" android:id="@+id/tv_zoom_max_label" />
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slider_zoom_max"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:valueFrom="10" android:valueTo="18" android:value="16"
+            android:stepSize="1" />
+
+        <!-- Оценка размера -->
+        <TextView android:id="@+id/tv_estimate"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textStyle="italic" android:padding="4dp" />
+
+        <!-- Кнопки -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/toggle_draw"
+                android:layout_width="0dp" android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Рисовать" />
+            <Button android:id="@+id/btn_load_gpx" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="GPX" />
+            <Button android:id="@+id/btn_clear" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Очистить" />
+            <Button android:id="@+id/btn_confirm" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="Готово"
+                style="@style/Widget.MaterialComponents.Button" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

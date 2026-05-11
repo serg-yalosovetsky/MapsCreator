@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MapsCreator</string>
+    <string name="action_settings">Настройки</string>
+    <string name="btn_add_area">Добавить область</string>
+    <string name="btn_load_gpx">Загрузить GPX</string>
+    <string name="btn_clear">Очистить</string>
+    <string name="btn_confirm">Готово</string>
+    <string name="draw_mode">Режим рисования</string>
+    <string name="zoom_min">Зум мин</string>
+    <string name="zoom_max">Зум макс</string>
+    <string name="source_osm">OpenStreetMap</string>
+    <string name="source_arcgis">ArcGIS Satellite</string>
+    <string name="source_google">Google Satellite</string>
+    <string name="source_bing">Bing Satellite</string>
+</resources>
