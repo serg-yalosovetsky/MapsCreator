@@ -62,6 +62,40 @@ reader six months from now.
   to `MapSelectorActivity`, wire it immediately. `updateEstimate()` is safe to call before a
   polygon is drawn (`polygonBbox() ?: return` guards it).
 
+## Plugin module rules
+
+The `:plugin` module is a **separate APK** (`android.application`, `applicationId = "com.mapscreator.osmandplugin"`).
+It must never be declared as `android.library`.
+
+**OsmAnd AIDL integration** — `android-aidl-lib:5.3` is resolved automatically via ivy in `plugin/build.gradle.kts`:
+```
+ivy { url = "https://builder.osmand.net"; pattern "ivy/[org]/[module]/[rev]/[artifact]-[rev].[ext]" }
+implementation("net.osmand:android-aidl-lib:5.3@aar")
+```
+No manual download needed. Without a resolvable AAR the `:plugin` module does not compile; `:app` is unaffected.
+
+**Key classes in `:plugin`:**
+
+| Class | Role |
+|---|---|
+| `PluginActivity` | Transparent Activity OsmAnd launches from its plugin list. Starts `OsmAndButtonService` and finishes. |
+| `OsmAndButtonService` | Maintains AIDL binding to OsmAnd (`IOsmAndAidlInterface`). Registers the «Скачать в MapsCreator» button via `addMapContextMenuButtons`. Handles `onContextMenuButtonClicked` → calls `getActiveGpx` → fires `ACTION_IMPORT_ROUTE`. |
+| `OsmAndAutoStartReceiver` | Receives `BOOT_COMPLETED` and `net.osmand.api.OSMAND_STARTED`; restarts `OsmAndButtonService`. |
+| `MapsCreatorPlugin` | Stateless helpers: `exportCurrentRoute()` (fires `ACTION_IMPORT_ROUTE` to `:app`) and `buildRouteJson()` (list of lat/lon pairs → GeoJSON LineString). |
+
+**Plugin lifecycle:**
+1. `OsmAndAutoStartReceiver` starts `OsmAndButtonService` on boot / OsmAnd launch.
+2. Service binds to `net.osmand.plus` or `net.osmand` (tries both).
+3. On `onServiceConnected`: registers AIDL callback (`registerForUpdates`) + adds context menu button.
+4. On button click: `onContextMenuButtonClicked` → `getActiveGpx` → `exportCurrentRoute` → MapsCreator opens.
+5. On `onServiceDisconnected` (OsmAnd killed): service stops itself; receiver restarts it next time.
+
+**IOsmAndAidlCallback.Stub() — implement all abstract methods.**
+If the AAR version adds new abstract methods, the Kotlin compiler will report them as missing overrides.
+Add empty stubs for new methods; override only `onContextMenuButtonClicked`.
+
+**osmand.plugin meta-data value must be `"true"`** — not a class name. OsmAnd 4.x ignores class-name values.
+
 ## Palette invariant (critical)
 
 `export/Palette.kt` is a copy of garmiand's palette. Any change requires:

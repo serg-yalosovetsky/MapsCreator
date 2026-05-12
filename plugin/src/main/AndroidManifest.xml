@@ -1,18 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.mapscreator.osmandplugin">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
     <application
         android:label="MapsCreator for OsmAnd"
         android:icon="@android:drawable/ic_menu_mapmode">
 
         <!--
-            OsmAnd plugin discovery: OsmAnd сканирует установленные APK
-            с этим meta-data и загружает их как плагины.
+            OsmAnd сканирует установленные APK с этим meta-data и показывает их
+            в Settings → Plugins. android:value="true" — формат OsmAnd 4.x.
         -->
         <meta-data
             android:name="osmand.plugin"
-            android:value="com.mapscreator.osmandplugin.MapsCreatorPlugin" />
+            android:value="true" />
+
+        <!--
+            OsmAnd запускает эту Activity когда пользователь нажимает «Settings»
+            рядом с плагином в списке. Theme.NoDisplay завершает Activity сразу
+            (без UI), стартуя OsmAndButtonService.
+        -->
+        <activity
+            android:name=".PluginActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Поддерживает AIDL-соединение с OsmAnd, регистрирует кнопку
+            «Скачать в MapsCreator» в навигационной панели и обрабатывает клики.
+            Запускается OsmAndAutoStartReceiver и PluginActivity.
+        -->
+        <service
+            android:name=".OsmAndButtonService"
+            android:exported="false" />
+
+        <!--
+            Перезапускает OsmAndButtonService при старте устройства и при
+            запуске OsmAnd (net.osmand.api.OSMAND_STARTED).
+        -->
+        <receiver
+            android:name=".OsmAndAutoStartReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="net.osmand.api.OSMAND_STARTED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

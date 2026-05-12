@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
 
@@ -8,7 +8,11 @@ android {
     compileSdk = 34
 
     defaultConfig {
+        applicationId = "com.mapscreator.osmandplugin"
         minSdk = 26
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
     }
 
     compileOptions {
@@ -23,6 +27,5 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    // OsmAnd API: если не доступен в Maven — подключить osmand-api.jar вручную
-    // compileOnly(files("libs/osmand-api.jar"))
+    implementation("net.osmand:android-aidl-lib:5.3@aar")
 }

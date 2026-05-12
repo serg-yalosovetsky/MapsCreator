@@ -12,6 +12,13 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://jitpack.io")
+        ivy {
+            url = uri("https://builder.osmand.net")
+            patternLayout {
+                artifact("ivy/[organisation]/[module]/[revision]/[artifact]-[revision](-[classifier]).[ext]")
+            }
+            metadataSources { artifact() }
+        }
     }
 }
 
