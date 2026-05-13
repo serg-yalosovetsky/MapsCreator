@@ -3,6 +3,13 @@
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!-- Android 11+: без этого блока bindService к net.osmand возвращает false -->
+    <queries>
+        <package android:name="net.osmand" />
+        <package android:name="net.osmand.plus" />
+    </queries>
 
     <application
         android:label="MapsCreator for OsmAnd"
@@ -24,10 +31,16 @@
         <activity
             android:name=".PluginActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.NoDisplay">
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.INFO" />
+                <category android:name="net.osmand.api.PLUGIN" />
+            </intent-filter>
+            <!-- OsmAnd fires this URI when user taps nav drawer item -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="mapscreator" />
             </intent-filter>
         </activity>
 
@@ -38,7 +51,8 @@
         -->
         <service
             android:name=".OsmAndButtonService"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
 
         <!--
             Перезапускает OsmAndButtonService при старте устройства и при

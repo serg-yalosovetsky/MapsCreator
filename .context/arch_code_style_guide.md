@@ -74,6 +74,16 @@ implementation("net.osmand:android-aidl-lib:5.3@aar")
 ```
 No manual download needed. Without a resolvable AAR the `:plugin` module does not compile; `:app` is unaffected.
 
+**API 5.3 vs legacy `osmand-api.aar` differences (important):**
+- Package: `net.osmand.aidlapi` (was `net.osmand.aidl`)
+- `addContextMenuButtons(ContextMenuButtonsParams, IOsmAndAidlCallback)` — takes callback directly, returns `Long callbackId`; no separate `registerForUpdates` needed
+- `ContextMenuButtonsParams(leftBtn, rightBtn, id, appPkg, layerId, callbackId=0, pointsIds)` — button icons are `String` names, not `Int` ids
+- `RemoveContextMenuButtonsParams(paramsId: String, callbackId: Long)` — use the ID returned by `addContextMenuButtons`
+- `getActiveGpx(MutableList<ASelectedGpxFile>)` — out-parameter, fills metadata only (no track coordinates)
+- `onContextMenuButtonClicked(buttonId: Int, pointId: String?, layerId: String?)` — no lat/lon
+- New callback methods: `updateNavigationInfo(ADirectionInfo?)`, `onVoiceRouterNotify(OnVoiceNavigationParams?)`, `onKeyEvent(KeyEvent?)`, `onLogcatMessage(OnLogcatMessageParams?)`
+- Route coordinates: read GPX file directly from `Android/data/<osmand_pkg>/files/` (AIDL no longer exposes track points)
+
 **Key classes in `:plugin`:**
 
 | Class | Role |
