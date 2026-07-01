@@ -9,6 +9,7 @@
     <queries>
         <package android:name="net.osmand" />
         <package android:name="net.osmand.plus" />
+        <package android:name="com.mapscreator" />
     </queries>
 
     <application
