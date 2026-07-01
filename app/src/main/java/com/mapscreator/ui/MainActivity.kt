@@ -170,6 +170,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
+        R.id.menu_route_export -> { startActivity(Intent(this, RouteExportActivity::class.java)); true }
         else -> super.onOptionsItemSelected(item)
     }
 

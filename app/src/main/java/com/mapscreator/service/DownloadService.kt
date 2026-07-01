@@ -30,8 +30,45 @@ class DownloadService : Service() {
                 val forceRefresh = intent.getBooleanExtra(EXTRA_FORCE_REFRESH, false)
                 startDownload(areaId, sourceIds.toList(), zoomMin, zoomMax, forceRefresh)
             }
+            ACTION_START_TILES -> {
+                val tilesFile = intent.getStringExtra(EXTRA_TILES_FILE) ?: return START_NOT_STICKY
+                val sourceIds = intent.getStringArrayExtra(EXTRA_SOURCE_IDS) ?: return START_NOT_STICKY
+                startTileListDownload(tilesFile, sourceIds.toList())
+            }
         }
         return START_NOT_STICKY
+    }
+
+    // Скачивание явного списка тайлов (коридор маршрута). Список передаётся файлом
+    // "z,x,y" на строку — Intent-экстра не тянет тысячи координат.
+    private fun startTileListDownload(tilesFilePath: String, sourceIds: List<String>) {
+        startForeground(NOTIF_ID, buildNotification("Подготовка...", 0, 0))
+        activeJob = scope.launch {
+            try {
+                val tiles = java.io.File(tilesFilePath).readLines().mapNotNull { line ->
+                    val p = line.split(",")
+                    if (p.size == 3) TileCoord(p[0].toInt(), p[1].toInt(), p[2].toInt()) else null
+                }
+                val store = MBTilesStore(this@DownloadService, "mapscreator")
+                val sources = sourceIds.mapNotNull { id -> TileSource.PRESETS.find { it.id == id } }
+                val downloader = TileDownloader(store, OkHttpClient())
+                sources.forEachIndexed { si, source ->
+                    val prefix = if (sources.size > 1) "${source.name}: " else ""
+                    downloader.download(tiles, source) { p ->
+                        updateNotification("$prefix${p.downloaded + p.skipped}/${p.total} тайлов", p.done, p.total)
+                    }
+                }
+                updateNotification("Коридор скачан: ${tiles.size} тайлов", 1, 1)
+                java.io.File(tilesFilePath).delete()
+            } catch (e: CancellationException) {
+                // нормальная отмена
+            } catch (e: Exception) {
+                updateNotification("Ошибка: ${e.message}", 0, 0)
+            } finally {
+                delay(2000)
+                stopSelf()
+            }
+        }
     }
 
     private fun startDownload(
@@ -127,7 +164,9 @@ class DownloadService : Service() {
 
     companion object {
         const val ACTION_START = "com.mapscreator.START_DOWNLOAD"
+        const val ACTION_START_TILES = "com.mapscreator.START_TILES_DOWNLOAD"
         const val ACTION_CANCEL = "com.mapscreator.CANCEL_DOWNLOAD"
+        const val EXTRA_TILES_FILE = "tiles_file"
         const val EXTRA_AREA_ID = "area_id"
         const val EXTRA_SOURCE_IDS = "source_ids"
         const val EXTRA_ZOOM_MIN = "zoom_min"
@@ -151,6 +190,16 @@ class DownloadService : Service() {
                 putExtra(EXTRA_ZOOM_MIN, zoomMin)
                 putExtra(EXTRA_ZOOM_MAX, zoomMax)
                 putExtra(EXTRA_FORCE_REFRESH, forceRefresh)
+            }
+            context.startForegroundService(intent)
+        }
+
+        /** Скачать явный список тайлов (файл «z,x,y» на строку — см. ACTION_START_TILES). */
+        fun startTiles(context: Context, tilesFilePath: String, sourceIds: List<String>) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = ACTION_START_TILES
+                putExtra(EXTRA_TILES_FILE, tilesFilePath)
+                putExtra(EXTRA_SOURCE_IDS, sourceIds.toTypedArray())
             }
             context.startForegroundService(intent)
         }

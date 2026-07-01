@@ -45,6 +45,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.RouteExportActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.SettingsActivity"
             android:exported="false" />
 

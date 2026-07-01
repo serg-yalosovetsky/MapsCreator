@@ -106,6 +106,54 @@ class GmndExporter(private val store: MBTilesStore) {
         return ExportResult(outputFile, tiles.size, blob.size, perZoom)
     }
 
+    /**
+     * Экспорт коридора вокруг маршрута с выбранными зумами. Список тайлов на зум
+     * обрезается по капам часов (CorridorPlanner.watchCaps) в порядке first-touch
+     * вдоль маршрута — то же самое показывает предпросмотр в RouteExportActivity.
+     */
+    fun exportCorridor(
+        sourceId: String,
+        points: List<CorridorPlanner.LatLon>,
+        bufferMeters: Double,
+        zooms: List<Int>,
+        outputFile: File,
+    ): ExportResult {
+        val plans = CorridorPlanner.plan(points, bufferMeters, zooms)
+        val tiles = mutableListOf<QuantizedTile>()
+        val perZoom = mutableMapOf<Int, Int>()
+        for (plan in plans) {
+            var added = 0
+            for ((z, tx, ty) in plan.watchTiles) {
+                val bmp = renderTile(z, tx, ty, sourceId, plan.outputPx) ?: continue
+                val pixels = quantizeBitmap(bmp)
+                bmp.recycle()
+                tiles += QuantizedTile(z, tx, ty, plan.outputPx, plan.outputPx, pixels)
+                added++
+            }
+            perZoom[plan.zoom] = added
+        }
+
+        var bMinLat = Double.MAX_VALUE
+        var bMaxLat = -Double.MAX_VALUE
+        var bMinLon = Double.MAX_VALUE
+        var bMaxLon = -Double.MAX_VALUE
+        for (t in tiles) {
+            val bounds = CorridorPlanner.tileBounds(t.zoom, t.tileX, t.tileY)
+            if (bounds[1] < bMinLat) bMinLat = bounds[1]
+            if (bounds[0] > bMaxLat) bMaxLat = bounds[0]
+            if (bounds[2] < bMinLon) bMinLon = bounds[2]
+            if (bounds[3] > bMaxLon) bMaxLon = bounds[3]
+        }
+        if (tiles.isEmpty()) {
+            bMinLat = points.minOf { it.lat }; bMaxLat = points.maxOf { it.lat }
+            bMinLon = points.minOf { it.lon }; bMaxLon = points.maxOf { it.lon }
+        }
+
+        val blob = serialize(bMinLat, bMaxLat, bMinLon, bMaxLon, tiles)
+        outputFile.writeBytes(blob)
+        return ExportResult(outputFile, tiles.size, blob.size, perZoom)
+    }
+
     /** Тайлы bbox на данном зуме, отсортированные от центра области наружу, максимум [cap]. */
     private fun pickTiles(
         minLat: Double, maxLat: Double, minLon: Double, maxLon: Double,
