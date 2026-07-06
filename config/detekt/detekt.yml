@@ -1,0 +1,36 @@
+# Detekt config for MapsCreator — builds upon detekt's default rules.
+# Existing findings are captured in per-module detekt-baseline.xml, so this
+# gate only fails on NEW issues introduced after the baseline was taken.
+
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  TooManyFunctions:
+    active: false
+  LongMethod:
+    active: true
+    threshold: 80
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+    constructorThreshold: 8
+
+style:
+  MagicNumber:
+    # Tile/geo math is full of legitimate constants (256, 180.0, PI, ...).
+    active: false
+  WildcardImport:
+    # Existing code uses `import kotlin.math.*`.
+    active: false
+  MaxLineLength:
+    maxLineLength: 140
+
+naming:
+  FunctionNaming:
+    # Allow @Composable-style and test backtick names.
+    active: true

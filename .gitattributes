@@ -1,0 +1,5 @@
+# Keep shell scripts and git hooks LF so they run on macOS/Linux/CI and Git Bash.
+*.sh text eol=lf
+.githooks/pre-commit text eol=lf
+.githooks/pre-push text eol=lf
+gradlew text eol=lf

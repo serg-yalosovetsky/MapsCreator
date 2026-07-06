@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>NestedBlockDepth:OsmAndButtonService.kt$OsmAndButtonService$private fun tryParseGpxFromUri(uri: Uri): List&lt;Pair&lt;Double, Double&gt;&gt;?</ID>
+    <ID>NestedBlockDepth:OsmAndButtonService.kt$OsmAndButtonService$private fun tryParseGpxTrkPts(path: String): List&lt;Pair&lt;Double, Double&gt;&gt;?</ID>
+    <ID>ReturnCount:OsmAndButtonService.kt$OsmAndButtonService$private fun extractRouteJson(): String?</ID>
+    <ID>TooGenericExceptionCaught:OsmAndButtonService.kt$OsmAndButtonService$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>

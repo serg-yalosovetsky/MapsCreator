@@ -55,6 +55,31 @@ $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 
 See [.context/BUILD_AND_DEPLOY.md](.context/BUILD_AND_DEPLOY.md) for full instructions.
 
+## Code Quality & CI
+
+Every push and pull request to `master` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+**detekt** (Kotlin lint) → **unit tests** → **`assembleDebug`** (build check).
+
+Run the same checks locally (needs a JDK 17–21; Gradle 8.6 rejects newer JDKs):
+
+```powershell
+.\gradlew detekt              # Kotlin static analysis
+.\gradlew testDebugUnitTest   # JVM unit tests
+```
+
+- **Linter:** detekt, config in [`config/detekt/detekt.yml`](config/detekt/detekt.yml). Existing
+  findings are captured in per-module `detekt-baseline.xml`, so the gate only fails on *new*
+  issues. After a deliberate refactor, refresh with `.\gradlew detektBaseline`.
+- **Local git hooks** (opt-in, one command per clone):
+
+  ```sh
+  git config core.hooksPath .githooks
+  ```
+
+  `pre-commit` runs detekt on staged Kotlin; `pre-push` runs unit tests. Both auto-locate a
+  JDK 17–21 and skip with a warning if none is installed (CI still enforces on the server).
+- **Tests** live in `app/src/test/` and run on the JVM (no device needed).
+
 ## Tile Sources
 
 | Source | Free? | Quality | Notes |

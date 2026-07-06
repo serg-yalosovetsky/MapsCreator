@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues></ManuallySuppressedIssues>
+  <CurrentIssues>
+    <ID>EmptyFunctionBlock:MBTilesStore.kt$MBTilesStore${}</ID>
+    <ID>EmptyFunctionBlock:RouteExportActivity.kt$RouteExportActivity.&lt;no name provided&gt;${}</ID>
+    <ID>ImplicitDefaultLocale:TileSizeEstimator.kt$TileSizeEstimator$String.format("%.1f MB", bytes / 1_048_576.0)</ID>
+    <ID>LongParameterList:GmndExporter.kt$GmndExporter$( minLat: Double, maxLat: Double, minLon: Double, maxLon: Double, cLat: Double, cLon: Double, zoom: Int, cap: Int, )</ID>
+    <ID>MaxLineLength:DownloadConfirmDialog.kt$DownloadConfirmDialog$lines.appendLine("${src.name}: ${est.tileCount} тайлов (~${TileSizeEstimator.formatBytes(est.estimatedBytes)}), в кеше: $cached")</ID>
+    <ID>MaxLineLength:RouteExportActivity.kt$RouteExportActivity$Toast.makeText(this@RouteExportActivity, "Не хватает ${result.tilesMissing} тайлов — доскачай «Офлайн»", Toast.LENGTH_LONG).show()</ID>
+    <ID>NestedBlockDepth:GpxParser.kt$GpxParser$fun parse(input: InputStream, defaultName: String = "Route"): GpxRoute</ID>
+    <ID>NestedBlockDepth:MapSelectorActivity.kt$MapSelectorActivity$override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?)</ID>
+    <ID>NestedBlockDepth:OsmandSqliteExporter.kt$OsmandSqliteExporter$fun export(sourceId: String, tiles: List&lt;TileCoord&gt;, outputFile: File): Result</ID>
+    <ID>NestedBlockDepth:RouteExportActivity.kt$RouteExportActivity$override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?)</ID>
+    <ID>NestedBlockDepth:RouteExportActivity.kt$RouteExportActivity$private fun renderPlanOverlays()</ID>
+    <ID>ReturnCount:CorridorPlanner.kt$CorridorPlanner$fun watchCaps(zooms: List&lt;Int&gt;): Map&lt;Int, Int&gt;</ID>
+    <ID>ReturnCount:DownloadService.kt$DownloadService$override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int</ID>
+    <ID>ReturnCount:GmndExporter.kt$GmndExporter$private fun composeFromChildren(z: Int, x: Int, y: Int, dz: Int, sourceId: String, outputPx: Int): Bitmap?</ID>
+    <ID>ReturnCount:GmndExporter.kt$GmndExporter$private fun cropFromAncestor(z: Int, x: Int, y: Int, dz: Int, sourceId: String, outputPx: Int): Bitmap?</ID>
+    <ID>ReturnCount:GmndExporter.kt$GmndExporter$private fun renderTile(z: Int, x: Int, y: Int, sourceId: String, outputPx: Int): Bitmap?</ID>
+    <ID>ReturnCount:MBTilesStore.kt$fun MapArea.bbox(): Bbox?</ID>
+    <ID>SwallowedException:DownloadService.kt$DownloadService$e: CancellationException</ID>
+    <ID>SwallowedException:GarminSender.kt$GarminSender$e: Exception</ID>
+    <ID>SwallowedException:TileDownloader.kt$TileDownloader$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DownloadService.kt$DownloadService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:GarminSender.kt$GarminSender$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MainActivity.kt$MainActivity$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MapSelectorActivity.kt$MapSelectorActivity$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RouteExportActivity.kt$RouteExportActivity$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:TileDownloader.kt$TileDownloader$e: Exception</ID>
+  </CurrentIssues>
+</SmellBaseline>
