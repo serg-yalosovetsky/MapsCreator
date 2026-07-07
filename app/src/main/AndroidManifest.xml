@@ -11,6 +11,12 @@
         android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Android 11+ package visibility: без этого resolveActivity/getPackageInfo
+         для garmiand вернут null и экспорт молча уйдёт в share sheet. -->
+    <queries>
+        <package android:name="com.garmiand" />
+    </queries>
+
     <application
         android:name=".MapsCreatorApp"
         android:label="MapsCreator"
@@ -36,6 +42,10 @@
 
         <activity
             android:name=".ui.MapSelectorActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.RouteExportActivity"
             android:exported="false" />
 
         <activity

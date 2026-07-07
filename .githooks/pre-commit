@@ -1,0 +1,24 @@
+#!/bin/sh
+# pre-commit: run detekt (Kotlin lint) when Kotlin files are staged.
+# Enable once per clone:  git config core.hooksPath .githooks
+
+kt_staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.kt$' || true)
+[ -z "$kt_staged" ] && exit 0
+
+DIR=$(dirname "$0")
+. "$DIR/_find_jdk.sh"
+JDK="$(find_jdk || true)"
+if [ -z "$JDK" ]; then
+    echo "[pre-commit] WARN: no Gradle-compatible JDK (17-21) found; skipping detekt."
+    echo "             Install one (winget install Microsoft.OpenJDK.17) to enable the local gate."
+    exit 0
+fi
+export JAVA_HOME="$JDK"
+
+echo "[pre-commit] detekt (JDK: $JDK)..."
+if ! ./gradlew --quiet detekt; then
+    echo ""
+    echo "[pre-commit] detekt found NEW issues. Fix them, or (if intentional) refresh the"
+    echo "             baseline with ./gradlew detektBaseline. Commit aborted."
+    exit 1
+fi

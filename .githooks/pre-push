@@ -1,0 +1,20 @@
+#!/bin/sh
+# pre-push: run unit tests before pushing.
+# Enable once per clone:  git config core.hooksPath .githooks
+
+DIR=$(dirname "$0")
+. "$DIR/_find_jdk.sh"
+JDK="$(find_jdk || true)"
+if [ -z "$JDK" ]; then
+    echo "[pre-push] WARN: no Gradle-compatible JDK (17-21) found; skipping tests."
+    echo "           CI will still run them on the server. Push continues."
+    exit 0
+fi
+export JAVA_HOME="$JDK"
+
+echo "[pre-push] unit tests (JDK: $JDK)..."
+if ! ./gradlew --quiet testDebugUnitTest; then
+    echo ""
+    echo "[pre-push] unit tests failed. Push aborted."
+    exit 1
+fi

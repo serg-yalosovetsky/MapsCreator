@@ -111,18 +111,37 @@ class MainActivity : AppCompatActivity() {
             return
         }
         lifecycleScope.launch {
-            val tiles = withContext(Dispatchers.Default) {
-                (area.zoomMin..area.zoomMax).flatMap { z ->
-                    TileSizeEstimator.tilesInBbox(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, z)
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    val exportsDir = File(getExternalFilesDir(null), "exports").also { it.mkdirs() }
+                    val outputFile = File(exportsDir, "${area.name}.gmnd")
+                    GmndExporter(store).export(sourceId, bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, outputFile)
                 }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Экспорт не удался: ${e.message}", Toast.LENGTH_LONG).show()
+                return@launch
             }
-            val result = withContext(Dispatchers.IO) {
-                val exportsDir = File(getExternalFilesDir(null), "exports").also { it.mkdirs() }
-                val outputFile = File(exportsDir, "${area.name}.gmnd")
-                GmndExporter(store).export(tiles, sourceId, bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, outputFile)
+            if (result.tileCount == 0) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Нет тайлов для экспорта — сначала скачай область («${area.name}», источник $sourceId)",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@launch
             }
+            val breakdown = result.perZoom.entries
+                .filter { it.value > 0 }
+                .joinToString(", ") { "z${it.key}:${it.value}" }
+            Toast.makeText(
+                this@MainActivity,
+                "GMND: ${result.tileCount} тайлов ($breakdown), ${TileSizeEstimator.formatBytes(result.bytes.toLong())}",
+                Toast.LENGTH_LONG
+            ).show()
             val sent = GarminSender.sendToGarmiand(this@MainActivity, result.file)
-            if (!sent) GarminSender.shareGmndFile(this@MainActivity, result.file)
+            if (!sent) {
+                Toast.makeText(this@MainActivity, "garmiand не найден — отправляю через share sheet", Toast.LENGTH_SHORT).show()
+                GarminSender.shareGmndFile(this@MainActivity, result.file)
+            }
         }
     }
 
@@ -151,6 +170,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.menu_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
+        R.id.menu_route_export -> { startActivity(Intent(this, RouteExportActivity::class.java)); true }
         else -> super.onOptionsItemSelected(item)
     }
 
