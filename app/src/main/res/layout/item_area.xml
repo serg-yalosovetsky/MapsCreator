@@ -34,6 +34,11 @@
             android:src="@android:drawable/stat_sys_download"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Скачать" />
+        <ImageButton android:id="@+id/btn_osmand"
+            android:layout_width="40dp" android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_mapmode"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Сохранить для OsmAnd" />
         <ImageButton android:id="@+id/btn_garmin"
             android:layout_width="40dp" android:layout_height="40dp"
             android:src="@android:drawable/ic_menu_share"

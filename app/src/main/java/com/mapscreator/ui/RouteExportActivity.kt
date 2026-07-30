@@ -3,18 +3,16 @@ package com.mapscreator.ui
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.mapscreator.databinding.ActivityRouteExportBinding
 import com.mapscreator.export.CorridorPlanner
 import com.mapscreator.export.GarminSender
 import com.mapscreator.export.GmndExporter
-import com.mapscreator.export.OsmandSqliteExporter
+import com.mapscreator.export.OsmandExport
 import com.mapscreator.gpx.GpxParser
 import com.mapscreator.gpx.GpxRoute
 import com.mapscreator.service.DownloadService
@@ -268,32 +266,14 @@ class RouteExportActivity : AppCompatActivity() {
         val r = route ?: return
         val source = selectedSource()
         lifecycleScope.launch {
-            val result = try {
-                withContext(Dispatchers.IO) {
-                    val exportsDir = File(getExternalFilesDir(null), "exports").also { it.mkdirs() }
-                    OsmandSqliteExporter(store).export(
-                        source.id, allCorridorTiles(), File(exportsDir, "${r.name}.sqlitedb")
-                    )
-                }
+            val message = try {
+                OsmandExport.exportAndInstall(
+                    this@RouteExportActivity, store, source.id, allCorridorTiles(), r.name
+                )
             } catch (e: Exception) {
-                Toast.makeText(this@RouteExportActivity, "Экспорт в OsmAnd не удался: ${e.message}", Toast.LENGTH_LONG).show()
-                return@launch
+                "Экспорт в OsmAnd не удался: ${e.message}"
             }
-            if (result.tilesWritten == 0) {
-                Toast.makeText(this@RouteExportActivity, "В сторе нет тайлов коридора — сначала «Офлайн»", Toast.LENGTH_LONG).show()
-                return@launch
-            }
-            if (result.tilesMissing > 0) {
-                Toast.makeText(this@RouteExportActivity, "Не хватает ${result.tilesMissing} тайлов — доскачай «Офлайн»", Toast.LENGTH_LONG).show()
-            }
-            val uri: Uri = FileProvider.getUriForFile(
-                this@RouteExportActivity, "$packageName.fileprovider", result.file
-            )
-            startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                type = "application/octet-stream"
-                putExtra(Intent.EXTRA_STREAM, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }, "Отправить .sqlitedb (выбери OsmAnd)"))
+            Toast.makeText(this@RouteExportActivity, message, Toast.LENGTH_LONG).show()
         }
     }
 

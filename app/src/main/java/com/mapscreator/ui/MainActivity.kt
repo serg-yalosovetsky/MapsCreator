@@ -14,6 +14,7 @@ import com.mapscreator.R
 import com.mapscreator.databinding.ActivityMainBinding
 import com.mapscreator.export.GarminSender
 import com.mapscreator.export.GmndExporter
+import com.mapscreator.export.OsmandExport
 import com.mapscreator.tiles.MapArea
 import com.mapscreator.tiles.MBTilesStore
 import com.mapscreator.tiles.TileSizeEstimator
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
         binding.recyclerAreas.layoutManager = LinearLayoutManager(this)
         binding.recyclerAreas.adapter = AreaAdapter(areas,
             onDownload = { area -> showDownloadDialog(area) },
+            onExportOsmand = { area -> exportToOsmand(area) },
             onExportGarmin = { area -> exportToGarmin(area) },
             onDelete = { area -> confirmDelete(area) }
         )
@@ -102,6 +104,31 @@ class MainActivity : AppCompatActivity() {
         DownloadConfirmDialog(this, store, area) { sourceIds, zoomMin, zoomMax, forceRefresh ->
             com.mapscreator.service.DownloadService.start(this, area.id, sourceIds, zoomMin, zoomMax, forceRefresh)
         }.show()
+    }
+
+    /**
+     * Область → .sqlitedb для OsmAnd. Берёт все тайлы bbox во всём зум-диапазоне
+     * области; чего нет в сторе, экспортёр посчитает и сообщит.
+     */
+    private fun exportToOsmand(area: MapArea) {
+        val sourceId = area.sources.split(",").firstOrNull() ?: return
+        val bbox = area.bbox() ?: run {
+            Toast.makeText(this, "Не удалось определить координаты области", Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch {
+            val tiles = withContext(Dispatchers.Default) {
+                (area.zoomMin..area.zoomMax).flatMap { z ->
+                    TileSizeEstimator.tilesInBbox(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, z)
+                }
+            }
+            val message = try {
+                OsmandExport.exportAndInstall(this@MainActivity, store, sourceId, tiles, area.name)
+            } catch (e: Exception) {
+                "Экспорт в OsmAnd не удался: ${e.message}"
+            }
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun exportToGarmin(area: MapArea) {

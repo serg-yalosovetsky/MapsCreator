@@ -12,6 +12,7 @@ import com.mapscreator.tiles.MapArea
 class AreaAdapter(
     private val areas: List<MapArea>,
     private val onDownload: (MapArea) -> Unit,
+    private val onExportOsmand: (MapArea) -> Unit,
     private val onExportGarmin: (MapArea) -> Unit,
     private val onDelete: (MapArea) -> Unit
 ) : RecyclerView.Adapter<AreaAdapter.VH>() {
@@ -21,6 +22,7 @@ class AreaAdapter(
         val tvAge: TextView = view.findViewById(R.id.tv_area_age)
         val tvTiles: TextView = view.findViewById(R.id.tv_area_tiles)
         val btnDownload: ImageButton = view.findViewById(R.id.btn_download)
+        val btnOsmand: ImageButton = view.findViewById(R.id.btn_osmand)
         val btnGarmin: ImageButton = view.findViewById(R.id.btn_garmin)
         val btnDelete: ImageButton = view.findViewById(R.id.btn_delete)
     }
@@ -36,6 +38,7 @@ class AreaAdapter(
         holder.tvAge.text = "Обновлено: ${formatAge(area.lastUpdated)}"
         holder.tvTiles.text = "${area.tileCount} тайлов · zoom ${area.zoomMin}–${area.zoomMax}"
         holder.btnDownload.setOnClickListener { onDownload(area) }
+        holder.btnOsmand.setOnClickListener { onExportOsmand(area) }
         holder.btnGarmin.setOnClickListener { onExportGarmin(area) }
         holder.btnDelete.setOnClickListener { onDelete(area) }
     }
