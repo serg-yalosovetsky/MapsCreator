@@ -15,6 +15,11 @@
          для garmiand вернут null и экспорт молча уйдёт в share sheet. -->
     <queries>
         <package android:name="com.garmiand" />
+        <!-- OsmAnd: без видимости пакета resolveActivity для ACTION_VIEW вернёт null
+             при установленном приложении, и .sqlitedb уедет в Downloads вместо OsmAnd. -->
+        <package android:name="net.osmand.plus" />
+        <package android:name="net.osmand" />
+        <package android:name="net.osmand.dev" />
     </queries>
 
     <application

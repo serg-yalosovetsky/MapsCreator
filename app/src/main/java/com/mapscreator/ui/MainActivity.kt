@@ -122,12 +122,13 @@ class MainActivity : AppCompatActivity() {
                     TileSizeEstimator.tilesInBbox(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, z)
                 }
             }
-            val message = try {
+            val result = try {
                 OsmandExport.exportAndInstall(this@MainActivity, store, sourceId, tiles, area.name)
             } catch (e: Exception) {
-                "Экспорт в OsmAnd не удался: ${e.message}"
+                OsmandExport.Result("Экспорт в OsmAnd не удался: ${e.message}", null)
             }
-            Toast.makeText(this@MainActivity, message, Toast.LENGTH_LONG).show()
+            Toast.makeText(this@MainActivity, result.message, Toast.LENGTH_LONG).show()
+            result.intent?.let { startActivity(it) }
         }
     }
 

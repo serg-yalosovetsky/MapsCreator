@@ -266,14 +266,15 @@ class RouteExportActivity : AppCompatActivity() {
         val r = route ?: return
         val source = selectedSource()
         lifecycleScope.launch {
-            val message = try {
+            val result = try {
                 OsmandExport.exportAndInstall(
                     this@RouteExportActivity, store, source.id, allCorridorTiles(), r.name
                 )
             } catch (e: Exception) {
-                "Экспорт в OsmAnd не удался: ${e.message}"
+                OsmandExport.Result("Экспорт в OsmAnd не удался: ${e.message}", null)
             }
-            Toast.makeText(this@RouteExportActivity, message, Toast.LENGTH_LONG).show()
+            Toast.makeText(this@RouteExportActivity, result.message, Toast.LENGTH_LONG).show()
+            result.intent?.let { startActivity(it) }
         }
     }
 

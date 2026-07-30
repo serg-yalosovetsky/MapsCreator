@@ -2,10 +2,12 @@ package com.mapscreator.export
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.FileProvider
 import java.io.File
 import java.io.IOException
 
@@ -14,14 +16,19 @@ import java.io.IOException
  *
  * Через share sheet это не работает: у OsmAnd единственный ACTION_SEND-фильтр
  * объявлен на mimeType text/plain (OsmAnd/AndroidManifest.xml), так что при
- * ACTION_SEND с application/octet-stream OsmAnd просто не появится в списке.
- * Поэтому файл кладём прямо в его каталог tiles/, а если тот недоступен —
- * в Downloads, откуда OsmAnd берёт файл своим импортом.
+ * ACTION_SEND с application/octet-stream OsmAnd в списке не появится.
  *
- * Android/media/<pkg>/ выбран намеренно: в отличие от Android/data/, он остался
- * доступен обычному File API после scoped storage. Гарантий на всех прошивках
- * это не даёт, поэтому результат попытки возвращается наружу — вызывающий код
- * обязан сказать пользователю, каким путём файл реально ушёл.
+ * Рабочий путь — ACTION_VIEW: у MapActivity есть фильтр на pathPattern *.sqlitedb,
+ * и OsmAnd сам импортирует файл в свой каталог (ImportHelper.handleSqliteTileImport →
+ * SqliteTileImportTask). Проверено на Fold 4 / Android 16: OsmAnd+ и OsmAnd
+ * появляются в «Відкрити за допомогою» для .sqlitedb.
+ *
+ * Копирование в каталог OsmAnd оставлено первой попыткой, но ТОЛЬКО в уже
+ * существующий каталог: на Android 11+ OsmAnd держит карты в
+ * Android/data/<pkg>/files/tiles, куда сторонним приложениям доступа нет, а
+ * Android/media/<pkg>/ у него попросту не существует. Создавать его через mkdirs()
+ * нельзя — файл лёг бы в пустышку, которую OsmAnd не читает, и доставка отчиталась
+ * бы успехом впустую.
  */
 object OsmandTilesInstaller {
 
@@ -31,10 +38,13 @@ object OsmandTilesInstaller {
     private val PACKAGES = listOf("net.osmand.plus", "net.osmand", "net.osmand.dev")
 
     sealed interface Outcome {
-        /** Файл лёг в tiles/ OsmAnd. Список источников карт OsmAnd перечитывает при старте. */
-        data class Installed(val pkg: String, val file: File) : Outcome
+        /** Файл лёг прямо в каталог OsmAnd. Источники карт OsmAnd перечитывает при старте. */
+        data class Copied(val pkg: String, val file: File) : Outcome
 
-        /** Файл сохранён, но подхватить его OsmAnd должен сам — через свой импорт файлов. */
+        /** Intent надо запустить: OsmAnd импортирует файл сам. */
+        data class HandOff(val intent: Intent, val pkg: String) : Outcome
+
+        /** Файл сохранён, но подхватить его OsmAnd должен через свой импорт файлов. */
         data class NeedsManualImport(val location: String) : Outcome
 
         data class Failed(val reason: String) : Outcome
@@ -44,11 +54,13 @@ object OsmandTilesInstaller {
         if (!source.isFile) {
             Outcome.Failed("файл ${source.name} не найден")
         } else {
-            installIntoTilesDir(source) ?: saveToDownloads(context, source)
+            copyIntoExistingTilesDir(source)
+                ?: handOffToOsmand(context, source)
+                ?: saveToDownloads(context, source)
         }
 
-    /** Первый каталог OsmAnd, в который удалось записать. null = ни один не доступен. */
-    private fun installIntoTilesDir(source: File): Outcome.Installed? {
+    /** Копия в каталог OsmAnd, если он существует. null = такого каталога нет. */
+    private fun copyIntoExistingTilesDir(source: File): Outcome.Copied? {
         val root = Environment.getExternalStorageDirectory()
         val candidates = PACKAGES.map { pkg ->
             pkg to File(root, "Android/media/$pkg/files/tiles")
@@ -57,13 +69,13 @@ object OsmandTilesInstaller {
             "osmand (legacy)" to File(root, "osmand/tiles")
         )
         return candidates.firstNotNullOfOrNull { (pkg, dir) ->
-            tryCopy(source, dir)?.let { Outcome.Installed(pkg, it) }
+            tryCopy(source, dir)?.let { Outcome.Copied(pkg, it) }
         }
     }
 
-    /** Копия в dir, если тот существует или создаётся. null = каталог недоступен. */
+    /** Копия в dir БЕЗ его создания. null = каталога нет или запись не удалась. */
     private fun tryCopy(source: File, dir: File): File? = try {
-        if (dir.isDirectory || dir.mkdirs()) {
+        if (dir.isDirectory) {
             val target = source.copyTo(File(dir, source.name), overwrite = true)
             if (target.length() == source.length()) target else null
         } else {
@@ -75,6 +87,34 @@ object OsmandTilesInstaller {
     } catch (e: SecurityException) {
         Log.d(TAG, "нет прав на запись в ${dir.path}", e)
         null
+    }
+
+    /**
+     * Intent на установленный OsmAnd. Пакет задаётся явно, чтобы файл не ушёл
+     * в случайную читалку из общего списка. null = ни один OsmAnd не установлен
+     * либо не отвечает на ACTION_VIEW (нужен <queries> в манифесте, иначе
+     * resolveActivity вернёт null при живом приложении).
+     */
+    private fun handOffToOsmand(context: Context, source: File): Outcome.HandOff? {
+        val uri = try {
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", source)
+        } catch (e: IllegalArgumentException) {
+            Log.d(TAG, "файл ${source.path} вне file_provider_paths", e)
+            return null
+        }
+        return PACKAGES.firstNotNullOfOrNull { pkg ->
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/octet-stream")
+                setPackage(pkg)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            if (intent.resolveActivity(context.packageManager) == null) {
+                null
+            } else {
+                Outcome.HandOff(intent, pkg)
+            }
+        }
     }
 
     private fun saveToDownloads(context: Context, source: File): Outcome {
@@ -110,7 +150,8 @@ object OsmandTilesInstaller {
     }
 
     private fun saveViaFile(source: File, subDir: String): Outcome {
-        val target = tryCopy(source, File(Environment.getExternalStorageDirectory(), subDir))
+        val dir = File(Environment.getExternalStorageDirectory(), subDir)
+        val target = if (dir.isDirectory || dir.mkdirs()) tryCopy(source, dir) else null
         return if (target == null) {
             Outcome.Failed("не удалось записать в $subDir")
         } else {
