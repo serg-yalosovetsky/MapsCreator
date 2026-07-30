@@ -117,10 +117,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
         lifecycleScope.launch {
-            val tiles = withContext(Dispatchers.Default) {
-                (area.zoomMin..area.zoomMax).flatMap { z ->
-                    TileSizeEstimator.tilesInBbox(bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, z)
+            val result = try {
+                withContext(Dispatchers.IO) {
+                    val exportsDir = File(getExternalFilesDir(null), "exports").also { it.mkdirs() }
+                    val outputFile = File(exportsDir, "${area.name}.gmnd")
+                    GmndExporter(store).export(sourceId, bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, outputFile)
                 }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Экспорт не удался: ${e.message}", Toast.LENGTH_LONG).show()
+                return@launch
             }
             val result = try {
                 OsmandExport.exportAndInstall(this@MainActivity, store, sourceId, tiles, area.name)
