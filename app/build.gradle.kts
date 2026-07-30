@@ -12,13 +12,17 @@ android {
         applicationId = "com.mapscreator"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Подписываем debug-ключом намеренно: APK ставится только на свои
+            // телефоны, в Play не публикуется, а один ключ на debug и release
+            // позволяет обновлять поверх уже установленной отладочной сборки.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

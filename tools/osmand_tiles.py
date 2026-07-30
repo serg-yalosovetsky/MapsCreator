@@ -15,10 +15,16 @@ OsmandSqliteExporter.kt), но без телефона: задал област�
         --source arcgis --out kyiv-centre.sqlitedb
     python osmand_tiles.py --bbox 50.40,30.45,50.50,30.60 --zoom 13-15 --out kyiv.sqlitedb
 
-Куда положить готовый файл на телефоне (любой из путей):
-    /storage/emulated/0/Android/media/net.osmand.plus/files/tiles/
-    /storage/emulated/0/Android/media/net.osmand/files/tiles/
-Затем перезапустить OsmAnd: Настроить карту → Источник карты → <имя файла>.
+Как отдать готовый файл телефону (проверено на Fold 4 / Android 16):
+    1. Скинуть .sqlitedb на телефон (Telegram, Downloads, adb push — куда угодно).
+    2. Открыть файл любым файловым менеджером и выбрать OsmAnd — он ответит
+       «Мапу імпортовано» и положит карту к себе сам.
+    3. OsmAnd: Налаштувати мапу → Джерело мапи (или Допоміжний шар мапи) → <имя файла>.
+
+Копировать файл в каталог OsmAnd руками НЕ получится: свои карты он держит в
+Android/data/<pkg>/files/tiles, закрытом для сторонних приложений после scoped
+storage, а Android/media/<pkg>/ у него не существует. Растровые источники к тому
+же не видны, пока в OsmAnd не включён плагин «Онлайн-мапи».
 """
 
 from __future__ import annotations
@@ -272,10 +278,9 @@ def main() -> int:
         )
         return 1
     print(
-        "Положи файл на телефоне в "
-        "/storage/emulated/0/Android/media/net.osmand.plus/files/tiles/ "
-        "(или net.osmand/ для бесплатной версии) и перезапусти OsmAnd: "
-        f"Настроить карту → Источник карты → {out_path.stem}"
+        "Скинь файл на телефон и открой его — выбери OsmAnd, он импортирует сам "
+        "(«Мапу імпортовано»). Затем: Налаштувати мапу → Джерело мапи → "
+        f"{out_path.stem}. Нужен включённый плагин «Онлайн-мапи»."
     )
     return 0
 
