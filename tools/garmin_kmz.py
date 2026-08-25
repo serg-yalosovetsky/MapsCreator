@@ -47,6 +47,7 @@ from xml.sax.saxutils import escape
 
 from PIL import Image
 
+from tile_store import StoreChain
 from osmand_tiles import (
     SOURCES,
     Tile,
@@ -190,6 +191,19 @@ def main() -> int:
         help="ОДИН уровень зума (Custom Maps не пирамида); 15 — разумный для пешего",
     )
     parser.add_argument("--source", default="arcgis", choices=sorted(SOURCES))
+    parser.add_argument(
+        "--store",
+        action="append",
+        default=None,
+        metavar="ПУТЬ",
+        help="локальная база тайлов (.mbtiles или RMaps .sqlitedb). Можно "
+        "повторять — порядок задаёт приоритет, первая найденная побеждает",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="не ходить в сеть: брать только то, что есть в --store",
+    )
     parser.add_argument("--out", required=True, help="путь к .kmz")
     parser.add_argument(
         "--block",
@@ -212,6 +226,24 @@ def main() -> int:
 
     zoom = args.zoom
     source = SOURCES[args.source]
+
+    chain = None
+    if args.store:
+        try:
+            chain = StoreChain(args.store)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"Склад не открылся: {exc}", file=sys.stderr)
+            return 2
+        print("Склад тайлов (по приоритету):")
+        print(chain.describe())
+        if zoom not in chain.zooms():
+            print(
+                f"  внимание: зума {zoom} в складе нет (есть {chain.zooms()}) — "
+                + ("всё пойдёт из сети" if not args.offline else "брать нечего"),
+            )
+    elif args.offline:
+        print("--offline без --store: брать неоткуда.", file=sys.stderr)
+        return 2
 
     if args.gpx:
         gpx_path = Path(args.gpx)
@@ -279,28 +311,52 @@ def main() -> int:
         )
         return 2
 
-    def download(t: Tile) -> tuple[Tile, bytes | None]:
-        return t, fetch(tile_url(source, t))
-
     images: dict[tuple[int, int], bytes] = {}
     missing = 0
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        for done, (t, blob) in enumerate(pool.map(download, needed), start=1):
-            if blob is None:
-                missing += 1
-            else:
+    from_store = 0
+
+    # Сначала local-склад: тайл, который уже лежит на диске, качать незачем, а в
+    # поле сети может не быть вовсе. Чужая детальная карта ставится первой в
+    # цепочке и перекрывает общий склад на своём районе, не смешиваясь с ним.
+    if chain is not None:
+        for t in needed:
+            blob, _ = chain.get(zoom, t.x, t.y)
+            if blob is not None:
                 images[(t.x, t.y)] = blob
-            if done % 25 == 0 or done == len(needed):
-                print(
-                    f"\r{done}/{len(needed)}  ок={len(images)} нет={missing}",
-                    end="",
-                    flush=True,
-                )
-    print()
+                from_store += 1
+        print(f"Из склада взято: {from_store} из {len(needed)}")
+
+    rest = [t for t in needed if (t.x, t.y) not in images]
+    if rest and args.offline:
+        print(
+            f"  {len(rest)} тайлов в складе нет, а --offline запрещает сеть — "
+            "в этих местах карта будет белой."
+        )
+        missing = len(rest)
+    elif rest:
+
+        def download(t: Tile) -> tuple[Tile, bytes | None]:
+            return t, fetch(tile_url(source, t))
+
+        print(f"Догружаю из сети: {len(rest)}")
+        with ThreadPoolExecutor(max_workers=args.workers) as pool:
+            for done, (t, blob) in enumerate(pool.map(download, rest), start=1):
+                if blob is None:
+                    missing += 1
+                else:
+                    images[(t.x, t.y)] = blob
+                if done % 25 == 0 or done == len(rest):
+                    print(
+                        f"\r{done}/{len(rest)}  ок={len(images) - from_store} нет={missing}",
+                        end="",
+                        flush=True,
+                    )
+        print()
 
     if not images:
         print(
-            "Ни одного тайла не скачалось — проверь сеть и источник.", file=sys.stderr
+            "Ни одного тайла не добыто — проверь склад, сеть и источник.",
+            file=sys.stderr,
         )
         return 1
 
