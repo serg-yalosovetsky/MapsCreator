@@ -10,10 +10,18 @@ OsmandSqliteExporter.kt), но без телефона: задал област�
 нумерованным и ищет тайл зума Z под z = 17 - Z, где ничего нет — карта
 открывается пустой (OsmAnd SQLiteTileSource.getFileZoom).
 
+Область задаётся одним из трёх способов: прямоугольником (--bbox), кругом
+(--center + --radius-km) или коридором вдоль трека (--gpx + --corridor-m).
+Коридор — тот же алгоритм, что в приложении (CorridorPlanner.kt): качается
+только полоса вокруг маршрута, а не весь охватывающий прямоугольник, поэтому
+на длинном треке файл выходит в разы меньше.
+
 Примеры:
     python osmand_tiles.py --center 50.4501,30.5234 --radius-km 3 --zoom 14-16 \
         --source arcgis --out kyiv-centre.sqlitedb
     python osmand_tiles.py --bbox 50.40,30.45,50.50,30.60 --zoom 13-15 --out kyiv.sqlitedb
+    python osmand_tiles.py --gpx Skole-Dovbush.gpx --corridor-m 1500 --zoom 13-16 \
+        --source arcgis --out skole.sqlitedb
 
 Как отдать готовый файл телефону (проверено на Fold 4 / Android 16):
     1. Скинуть .sqlitedb на телефон (Telegram, Downloads, adb push — куда угодно).
@@ -35,6 +43,7 @@ import sqlite3
 import sys
 import urllib.error
 import urllib.request
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -95,6 +104,92 @@ def tiles_in_bbox(
         for x in range(x_min, x_max + 1)
         for y in range(y_min, y_max + 1)
     ]
+
+
+def parse_gpx(path: Path) -> list[tuple[float, float]]:
+    """Точки трека из GPX, в порядке следования.
+
+    Теги ищутся по локальному имени: у GPX 1.0 и 1.1 разные namespace, а
+    экспортеры (Strava, Garmin, OsmAnd, komoot) ставят их вразнобой.
+    Приоритет trkpt → rtept → wpt: трек точнее маршрута, маршрут точнее
+    россыпи точек.
+    """
+    root = ET.parse(path).getroot()
+
+    def collect(tag: str) -> list[tuple[float, float]]:
+        found = []
+        for el in root.iter():
+            if el.tag.rsplit("}", 1)[-1] != tag:
+                continue
+            lat, lon = el.get("lat"), el.get("lon")
+            if lat is not None and lon is not None:
+                found.append((float(lat), float(lon)))
+        return found
+
+    for tag in ("trkpt", "rtept", "wpt"):
+        points = collect(tag)
+        if points:
+            return points
+    return []
+
+
+def haversine_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lat1, lon1 = math.radians(a[0]), math.radians(a[1])
+    lat2, lon2 = math.radians(b[0]), math.radians(b[1])
+    h = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
+    return 2 * 6_371_000.0 * math.asin(math.sqrt(h))
+
+
+def densify(
+    points: list[tuple[float, float]], max_step_m: float
+) -> list[tuple[float, float]]:
+    """Досыпать точек, чтобы соседние были не дальше max_step_m.
+
+    Коридор строится буфером вокруг КАЖДОЙ точки (как в CorridorPlanner.kt), а
+    у маршрутов-rte и прореженных треков соседние точки бывают за километры —
+    между ними в полосе остаются дыры. На телефоне это терпимо (трек с датчика
+    плотный), для файла с ПК — нет. Линейная интерполяция достаточна: на шаге
+    в единицы километров расхождение с большим кругом меньше метра.
+    """
+    if len(points) < 2:
+        return list(points)
+    out: list[tuple[float, float]] = [points[0]]
+    for prev, cur in zip(points, points[1:]):
+        gap = haversine_m(prev, cur)
+        steps = int(gap / max_step_m) if max_step_m > 0 else 0
+        for i in range(1, steps + 1):
+            f = i / (steps + 1)
+            out.append(
+                (prev[0] + (cur[0] - prev[0]) * f, prev[1] + (cur[1] - prev[1]) * f)
+            )
+        out.append(cur)
+    return out
+
+
+def corridor_tiles(
+    points: list[tuple[float, float]], buffer_m: float, zoom: int
+) -> list[Tile]:
+    """Тайлы в пределах buffer_m от любой точки маршрута, порядок first-touch.
+
+    Порт CorridorPlanner.corridorTiles: порядок обхода сохраняется, чтобы
+    скачивание шло вдоль маршрута и прогресс был осмысленным.
+    """
+    n = 1 << zoom
+    seen: dict[tuple[int, int], None] = {}
+    for lat, lon in points:
+        buf_lat = buffer_m / 111_000.0
+        # cos(lat) → 0 у полюсов; клампим, иначе буфер по долготе уходит в бесконечность.
+        buf_lon = buffer_m / (111_000.0 * max(math.cos(math.radians(lat)), 1e-6))
+        x0, y0 = lat_lon_to_tile(lat + buf_lat, lon - buf_lon, zoom)
+        x1, y1 = lat_lon_to_tile(lat - buf_lat, lon + buf_lon, zoom)
+        for ty in range(min(y0, y1), max(y0, y1) + 1):
+            for tx in range(min(x0, x1), max(x0, x1) + 1):
+                if 0 <= tx < n and 0 <= ty < n:
+                    seen.setdefault((tx, ty))
+    return [Tile(zoom, tx, ty) for tx, ty in seen]
 
 
 def quadkey(z: int, x: int, y: int) -> str:
@@ -184,11 +279,18 @@ def main() -> int:
     area = parser.add_mutually_exclusive_group(required=True)
     area.add_argument("--bbox", help="minLat,minLon,maxLat,maxLon")
     area.add_argument("--center", help="lat,lon (вместе с --radius-km)")
+    area.add_argument("--gpx", help="GPX-трек: вырезать коридор вдоль него")
     parser.add_argument(
         "--radius-km",
         type=float,
         default=3.0,
         help="радиус для --center (по умолчанию 3)",
+    )
+    parser.add_argument(
+        "--corridor-m",
+        type=float,
+        default=1000.0,
+        help="полуширина коридора для --gpx в метрах (по умолчанию 1000)",
     )
     parser.add_argument(
         "--zoom", default="14-16", help="'14-16' или '13,15,17' (по умолчанию 14-16)"
@@ -206,25 +308,74 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=8, help="параллельных загрузок")
     args = parser.parse_args()
 
-    if args.center:
-        lat, lon = (float(v) for v in args.center.split(","))
-        min_lat, min_lon, max_lat, max_lon = bbox_from_center(lat, lon, args.radius_km)
-    else:
-        min_lat, min_lon, max_lat, max_lon = (float(v) for v in args.bbox.split(","))
-    if min_lat > max_lat or min_lon > max_lon:
-        print(
-            "bbox задан наоборот: ожидается minLat,minLon,maxLat,maxLon",
-            file=sys.stderr,
-        )
-        return 2
-
     zooms = parse_zoom(args.zoom)
     source = SOURCES[args.source]
-    tiles = [
-        t for z in zooms for t in tiles_in_bbox(min_lat, min_lon, max_lat, max_lon, z)
-    ]
 
-    print(f"Область: {min_lat:.5f},{min_lon:.5f} .. {max_lat:.5f},{max_lon:.5f}")
+    if args.gpx:
+        gpx_path = Path(args.gpx)
+        if not gpx_path.is_file():
+            print(f"Нет файла: {gpx_path}", file=sys.stderr)
+            return 2
+        try:
+            raw_points = parse_gpx(gpx_path)
+        except ET.ParseError as exc:
+            print(f"GPX не разобрался: {exc}", file=sys.stderr)
+            return 2
+        if not raw_points:
+            print(
+                f"В {gpx_path.name} нет ни trkpt, ни rtept, ни wpt — нечего вырезать.",
+                file=sys.stderr,
+            )
+            return 2
+        # Шаг вдвое меньше полуширины: соседние буферы гарантированно перекрываются.
+        points = densify(raw_points, max(args.corridor_m / 2.0, 25.0))
+        length_km = (
+            sum(haversine_m(a, b) for a, b in zip(raw_points, raw_points[1:])) / 1000.0
+        )
+        tiles = [t for z in zooms for t in corridor_tiles(points, args.corridor_m, z)]
+        box_tiles = sum(
+            len(
+                tiles_in_bbox(
+                    min(p[0] for p in raw_points),
+                    min(p[1] for p in raw_points),
+                    max(p[0] for p in raw_points),
+                    max(p[1] for p in raw_points),
+                    z,
+                )
+            )
+            for z in zooms
+        )
+        print(
+            f"Маршрут: {gpx_path.name}  точек {len(raw_points)} "
+            f"(уплотнено до {len(points)})  длина {length_km:.1f} км"
+        )
+        print(
+            f"Коридор ±{args.corridor_m:.0f} м вместо прямоугольника: "
+            f"{len(tiles)} тайлов вместо {box_tiles}"
+        )
+    else:
+        if args.center:
+            lat, lon = (float(v) for v in args.center.split(","))
+            min_lat, min_lon, max_lat, max_lon = bbox_from_center(
+                lat, lon, args.radius_km
+            )
+        else:
+            min_lat, min_lon, max_lat, max_lon = (
+                float(v) for v in args.bbox.split(",")
+            )
+        if min_lat > max_lat or min_lon > max_lon:
+            print(
+                "bbox задан наоборот: ожидается minLat,minLon,maxLat,maxLon",
+                file=sys.stderr,
+            )
+            return 2
+        tiles = [
+            t
+            for z in zooms
+            for t in tiles_in_bbox(min_lat, min_lon, max_lat, max_lon, z)
+        ]
+        print(f"Область: {min_lat:.5f},{min_lon:.5f} .. {max_lat:.5f},{max_lon:.5f}")
+
     print(f"Источник: {source['name']}  зумы: {zooms}  тайлов: {len(tiles)}")
     if len(tiles) > args.max_tiles:
         print(
