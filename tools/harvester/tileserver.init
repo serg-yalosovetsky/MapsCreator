@@ -1,0 +1,25 @@
+#!/bin/sh /etc/rc.common
+# Тайл-сервер меша: отдаёт телефону тайлы из склада на /mnt/hdd, чтобы не
+# качать из интернета то, что роутер уже скачал.
+#
+# START поздний: склад лежит на /mnt/hdd, до его монтирования отдавать нечего.
+# respawn — сервис безоболочечный и лёгкий, перезапуск дешевле разбирательств.
+
+USE_PROCD=1
+START=95
+STOP=10
+
+PROG=/usr/bin/python3
+SCRIPT=/mnt/hdd/satellite/tileserver.py
+PORT=8811
+
+start_service() {
+    [ -f "$SCRIPT" ] || { echo "нет $SCRIPT"; return 1; }
+    procd_open_instance
+    procd_set_param command "$PROG" "$SCRIPT" --port "$PORT"
+    procd_set_param respawn 3600 5 0
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param pidfile /var/run/tileserver.pid
+    procd_close_instance
+}

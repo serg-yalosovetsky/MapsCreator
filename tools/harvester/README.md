@@ -25,3 +25,30 @@ Cron на роутере (5 раз в сутки, дописано в конец
     31 22 * * *  /mnt/hdd/satellite/tick.sh
 
 Посмотреть, как идёт: `ssh root@100.126.187.74 'tail /mnt/hdd/satellite/harvest.log'`
+
+## Тайл-сервер
+
+`tileserver.py` отдаёт склад по HTTP — средний уровень между кешем на телефоне
+и интернетом (garmiand APK ходит сюда перед тем, как качать из сети).
+
+    GET /tile/{z}/{x}/{y}   тайл в схеме XYZ; 404 — «нет на складе», не сбой
+    GET /health             какие базы открыты, сколько тайлов, какие зумы
+
+Базы берутся все из каталога, приоритет — по имени файла: `00-karp26-savva.sqlitedb`
+идёт раньше `arcgis.mbtiles`, потому что на общих зумах она измеримо детальнее
+(резкость 82.6 против 61.5 на z15, 69.1 против 35.8 на z17 — ArcGIS там, похоже,
+растягивает более низкий зум).
+
+`tileserver.init` — procd-сервис OpenWrt, ставится как `/etc/init.d/tileserver`:
+
+    scp tileserver.py root@100.126.187.74:/mnt/hdd/satellite/
+    scp tileserver.init root@100.126.187.74:/etc/init.d/tileserver
+    ssh root@100.126.187.74 'chmod +x /etc/init.d/tileserver && \
+        /etc/init.d/tileserver enable && /etc/init.d/tileserver start'
+
+START=95 — склад лежит на /mnt/hdd, до монтирования отдавать нечего.
+
+ВНИМАНИЕ про `owrt-checkpoint`: он взводит авто-откат UCI через 30 минут и
+вешает ssh на своём фоновом цикле. Для добавления файла в `/etc/init.d` он не
+нужен (это не UCI, а `/etc` и так версионируется `autocommit.sh` из cron). Если
+всё же вызвал — обязательно `owrt-commit`, иначе конфигурация откатится.
